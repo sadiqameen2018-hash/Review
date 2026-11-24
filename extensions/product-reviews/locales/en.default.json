@@ -1,0 +1,19 @@
+{
+  "reviews": {
+    "heading": "Customer reviews",
+    "based_on": "Based on {{ count }} reviews",
+    "no_reviews": "No reviews yet. Be the first to write one!",
+    "write": "Write a review",
+    "load_more": "Show more reviews",
+    "name": "Your name",
+    "email": "Email (not published)",
+    "rating": "Rating",
+    "title": "Review title",
+    "body": "Your review",
+    "submit": "Submit review",
+    "thanks_pending": "Thank you! Your review will appear once it is approved.",
+    "thanks_published": "Thank you! Your review has been published.",
+    "error": "Something went wrong. Please try again.",
+    "reviews_count": "{{ count }} reviews"
+  }
+}

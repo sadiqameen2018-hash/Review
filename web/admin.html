@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%">
+  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+  <title>Product Reviews</title>
+  <style>
+    :root { --bg:#f1f1f1; --card:#fff; --text:#303030; --muted:#616161; --border:#e3e3e3;
+            --accent:#008060; --danger:#d72c0d; --star:#f5a623; }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:16px; background:var(--bg); color:var(--text);
+           font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+    .wrap { max-width:980px; margin:0 auto; }
+    h1 { font-size:20px; margin:0 0 16px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .tabs button { border:1px solid var(--border); background:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; }
+    .tabs button[aria-pressed="true"] { background:var(--text); color:#fff; border-color:var(--text); }
+    .review { border-top:1px solid var(--border); padding:14px 0; }
+    .review:first-child { border-top:0; }
+    .stars { color:var(--star); letter-spacing:1px; }
+    .meta { color:var(--muted); font-size:12px; }
+    .badge { font-size:12px; padding:2px 8px; border-radius:10px; background:#eee; }
+    .badge.approved { background:#cdfee1; } .badge.pending { background:#fff1c2; } .badge.rejected { background:#fedad9; }
+    .actions { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+    .btn { border:1px solid var(--border); background:#fff; border-radius:8px; padding:5px 10px; cursor:pointer; }
+    .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+    .btn.danger { color:var(--danger); }
+    .empty { color:var(--muted); text-align:center; padding:24px 0; }
+    p.body { margin:6px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Product Reviews</h1>
+
+  <div class="card">
+    <label class="row">
+      <input type="checkbox" id="autoPublish">
+      <span><strong>Auto-publish new reviews</strong><br>
+        <span class="meta">When off, new reviews wait here for approval before they appear on your store.</span></span>
+    </label>
+  </div>
+
+  <div class="card">
+    <div class="row tabs" id="tabs">
+      <button data-status="pending" aria-pressed="true">Pending</button>
+      <button data-status="approved" aria-pressed="false">Approved</button>
+      <button data-status="rejected" aria-pressed="false">Rejected</button>
+      <button data-status="" aria-pressed="false">All</button>
+      <span class="meta" id="count"></span>
+    </div>
+    <div id="list"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px">
+      <button class="btn" id="prev">Previous</button>
+      <button class="btn" id="next">Next</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const PAGE = 20;
+  let status = 'pending', offset = 0, total = 0;
+
+  async function api(path, opts = {}) {
+    const token = await shopify.idToken();
+    const res = await fetch(path, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts.headers || {}) },
+    });
+    if (!res.ok && res.status !== 204) throw new Error(`Request failed (${res.status})`);
+    return res.status === 204 ? null : res.json();
+  }
+
+  const el = (tag, props = {}, ...kids) => {
+    const n = Object.assign(document.createElement(tag), props);
+    kids.forEach((k) => n.append(k));
+    return n;
+  };
+  const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+
+  function renderReview(r) {
+    const actions = el('div', { className: 'actions' });
+    const act = (label, cls, fn) => actions.append(el('button', { className: `btn ${cls}`, textContent: label, onclick: fn }));
+    if (r.status !== 'approved') act('Approve', 'primary', () => setStatus(r.id, 'approved'));
+    if (r.status !== 'rejected') act('Reject', '', () => setStatus(r.id, 'rejected'));
+    act('Delete', 'danger', () => remove(r.id));
+
+    return el('div', { className: 'review' },
+      el('div', { className: 'row' },
+        el('span', { className: 'stars', textContent: stars(r.rating) }),
+        el('strong', { textContent: r.title || '' }),
+        el('span', { className: `badge ${r.status}`, textContent: r.status })),
+      el('div', { className: 'meta',
+        textContent: `${r.author}${r.email ? ` <${r.email}>` : ''} · Product #${r.product_id} · ${new Date(r.created_at + 'Z').toLocaleString()}` }),
+      el('p', { className: 'body', textContent: r.body }),
+      actions);
+  }
+
+  async function load() {
+    const list = document.getElementById('list');
+    const qs = new URLSearchParams({ limit: PAGE, offset });
+    if (status) qs.set('status', status);
+    try {
+      const data = await api(`/api/reviews?${qs}`);
+      total = data.total;
+      list.replaceChildren(...(data.rows.length
+        ? data.rows.map(renderReview)
+        : [el('div', { className: 'empty', textContent: 'No reviews here yet.' })]));
+      document.getElementById('count').textContent = `${total} review${total === 1 ? '' : 's'}`;
+      document.getElementById('prev').disabled = offset === 0;
+      document.getElementById('next').disabled = offset + PAGE >= total;
+    } catch (e) {
+      list.replaceChildren(el('div', { className: 'empty', textContent: e.message }));
+    }
+  }
+
+  async function setStatus(id, s) {
+    await api(`/api/reviews/${id}`, { method: 'PATCH', body: JSON.stringify({ status: s }) });
+    shopify.toast.show(`Review ${s}`);
+    load();
+  }
+
+  async function remove(id) {
+    if (!confirm('Delete this review permanently?')) return;
+    await api(`/api/reviews/${id}`, { method: 'DELETE' });
+    shopify.toast.show('Review deleted');
+    load();
+  }
+
+  document.getElementById('tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-status]');
+    if (!b) return;
+    status = b.dataset.status; offset = 0;
+    document.querySelectorAll('#tabs button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    load();
+  });
+  document.getElementById('prev').onclick = () => { offset = Math.max(0, offset - PAGE); load(); };
+  document.getElementById('next').onclick = () => { offset += PAGE; load(); };
+
+  const auto = document.getElementById('autoPublish');
+  auto.addEventListener('change', async () => {
+    await api('/api/settings', { method: 'PUT', body: JSON.stringify({ auto_publish: auto.checked }) });
+    shopify.toast.show(auto.checked ? 'Auto-publish on' : 'Auto-publish off');
+  });
+  api('/api/settings').then((s) => { auto.checked = s.auto_publish; }).catch(() => {});
+  load();
+</script>
+</body>
+</html>

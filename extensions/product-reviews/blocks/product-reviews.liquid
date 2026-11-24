@@ -1,0 +1,66 @@
+{%- assign product_ref = block.settings.product | default: product -%}
+{%- if product_ref -%}
+<div
+  id="reviews"
+  class="pr-reviews"
+  data-product-id="{{ product_ref.id }}"
+  data-per-page="{{ block.settings.per_page }}"
+  data-show-form="{{ block.settings.show_form }}"
+  style="--pr-star: {{ block.settings.star_color }}; --pr-accent: {{ block.settings.button_color }};"
+>
+  <h2 class="pr-heading">{{ block.settings.heading | escape }}</h2>
+  <div class="pr-summary" aria-live="polite"></div>
+  {%- if block.settings.show_form -%}
+    <button type="button" class="pr-btn pr-toggle">{{ 'reviews.write' | t }}</button>
+    <form class="pr-form" hidden novalidate>
+      <fieldset class="pr-rating-input">
+        <legend>{{ 'reviews.rating' | t }}</legend>
+        {%- for i in (1..5) reversed -%}
+          <input type="radio" id="pr-r{{ i }}-{{ block.id }}" name="rating" value="{{ i }}" required>
+          <label for="pr-r{{ i }}-{{ block.id }}" title="{{ i }}">★</label>
+        {%- endfor -%}
+      </fieldset>
+      <label>{{ 'reviews.name' | t }}
+        <input name="author" maxlength="80" required
+          value="{% if customer %}{{ customer.first_name | escape }} {{ customer.last_name | slice: 0 | escape }}{% endif %}">
+      </label>
+      <label>{{ 'reviews.email' | t }}
+        <input name="email" type="email" maxlength="200" value="{{ customer.email | escape }}">
+      </label>
+      <label>{{ 'reviews.title' | t }}<input name="title" maxlength="150"></label>
+      <label>{{ 'reviews.body' | t }}<textarea name="body" rows="4" maxlength="5000" required></textarea></label>
+      <input name="website" tabindex="-1" autocomplete="off" class="pr-hp" aria-hidden="true">
+      <button type="submit" class="pr-btn">{{ 'reviews.submit' | t }}</button>
+      <p class="pr-msg" role="status"></p>
+    </form>
+  {%- endif -%}
+  <ul class="pr-list"></ul>
+  <button type="button" class="pr-btn pr-btn--ghost pr-more" hidden>{{ 'reviews.load_more' | t }}</button>
+  <script type="application/json" class="pr-i18n">
+    {
+      "basedOn": {{ 'reviews.based_on' | t: count: '__COUNT__' | json }},
+      "none": {{ 'reviews.no_reviews' | t | json }},
+      "pending": {{ 'reviews.thanks_pending' | t | json }},
+      "published": {{ 'reviews.thanks_published' | t | json }},
+      "error": {{ 'reviews.error' | t | json }}
+    }
+  </script>
+</div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Product reviews",
+  "target": "section",
+  "javascript": "reviews.js",
+  "stylesheet": "reviews.css",
+  "settings": [
+    { "type": "product", "id": "product", "label": "Product", "autofill": true },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Customer reviews" },
+    { "type": "range", "id": "per_page", "label": "Reviews per page", "min": 3, "max": 30, "step": 1, "default": 5 },
+    { "type": "checkbox", "id": "show_form", "label": "Show review form", "default": true },
+    { "type": "color", "id": "star_color", "label": "Star color", "default": "#f5a623" },
+    { "type": "color", "id": "button_color", "label": "Button color", "default": "#111111" }
+  ]
+}
+{% endschema %}

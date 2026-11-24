@@ -1,0 +1,25 @@
+{%- assign product_ref = block.settings.product | default: product -%}
+{%- assign rating = product_ref.metafields.reviews.rating.value -%}
+{%- assign count = product_ref.metafields.reviews.rating_count.value | default: 0 -%}
+{%- if count > 0 or block.settings.show_empty -%}
+  {%- assign avg = rating.rating | default: 0 | times: 1.0 -%}
+  {%- assign pct = avg | divided_by: 5.0 | times: 100 -%}
+  <a href="#reviews" class="pr-stars-badge" style="--pr-star: {{ block.settings.star_color }};"
+     aria-label="{{ avg | round: 1 }} / 5">
+    <span class="pr-stars" style="--pr-fill: {{ pct }}%;" aria-hidden="true"></span>
+    <span class="pr-stars-count">{{ 'reviews.reviews_count' | t: count: count }}</span>
+  </a>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Star rating",
+  "target": "section",
+  "stylesheet": "reviews.css",
+  "settings": [
+    { "type": "product", "id": "product", "label": "Product", "autofill": true },
+    { "type": "checkbox", "id": "show_empty", "label": "Show when product has no reviews", "default": false },
+    { "type": "color", "id": "star_color", "label": "Star color", "default": "#f5a623" }
+  ]
+}
+{% endschema %}
